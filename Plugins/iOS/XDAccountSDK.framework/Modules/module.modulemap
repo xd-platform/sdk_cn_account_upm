@@ -1,0 +1,6 @@
+framework module XDAccountSDK {
+  umbrella header "XDAccountSDK.h"
+
+  export *
+  module * { export * }
+}
