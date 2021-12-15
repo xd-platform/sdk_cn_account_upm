@@ -1,11 +1,10 @@
 {
   "name": "com.xd.cn.account",
-  "version": "6.0.0",
+  "version": "6.0.0-beta",
   "description": "XD-Cn Account",
-  "unity": "2018.3",
   "license": "MIT",
   "author": "guiming <suguiming@xd.com>",
   "dependencies": {
-    "com.xd.cn.common": "https://github.com/suguiming/sdk_cn_common_upm.git#1.0.0"
+    "com.xd.cn.common": "https://github.com/xd-platform/sdk_cn_common_upm.git#6.0.0-beta"
   }
 }
