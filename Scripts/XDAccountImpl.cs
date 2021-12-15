@@ -46,7 +46,7 @@ namespace XD.Cn.Account{
         public void LoginByType(string loginType){
             var command = new Command.Builder()
                 .Service(XDG_ACCOUNT_SERVICE)
-                .Method("loginType")
+                .Method("loginByType")
                 .Args("loginType", loginType)
                 .Callback(true)
                 .CommandBuilder();
