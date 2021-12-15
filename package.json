@@ -4,6 +4,10 @@
   "description": "XD-Cn Account",
   "license": "MIT",
   "author": "guiming <suguiming@xd.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xd-platform/sdk_cn_account_upm"
+  },
   "dependencies": {
     "com.xd.cn.common": "https://github.com/xd-platform/sdk_cn_common_upm.git#6.0.0-beta"
   }
