@@ -64,6 +64,9 @@ typedef void(^XDLoginSyncCallback)(NSDictionary * _Nullable result,NSError * _Nu
 /**强制QQ网页端方式*/
 + (void)setQQWeb;
 
+// 账户注销
++ (void)accountCancellation;
+
 @end
 
 NS_ASSUME_NONNULL_END

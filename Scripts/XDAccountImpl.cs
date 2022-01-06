@@ -25,7 +25,8 @@ namespace XD.Cn.Account{
             return _instance;
         }
 
-        public void Login(){
+        public void Login(Action<XDUser> callback, Action<XDError> errorCallback){
+            XDCallbackWrapper.SetLoginCallback(callback, errorCallback);
             var command = new Command(XDG_ACCOUNT_SERVICE,
                 "login",
                 true,
@@ -33,54 +34,52 @@ namespace XD.Cn.Account{
             EngineBridge.GetInstance().CallHandler(command, result => {
                 XDTool.Log("Login 方法结果: " + result.ToJSON());
                 if (XDTool.checkResultSuccess(result)){
-                    var userWrapper = new XDUserWrapper(result.content);
-                    if (userWrapper.error != null){
-                        XDTool.Log("Login 登录失败");
-                        return;
-                    }
                     LoginSync();
+                } else{
+                    errorCallback(new XDError(-1, "登录失败了"));
                 }
             });
         }
 
-        public void LoginByType(string loginType){
+        public void LoginByType(LoginType loginType, Action<XDUser> callback, Action<XDError> errorCallback){
+            XDCallbackWrapper.SetLoginCallback(callback, errorCallback);
             var command = new Command.Builder()
                 .Service(XDG_ACCOUNT_SERVICE)
                 .Method("loginByType")
-                .Args("loginType", loginType)
+                .Args("loginType", GetLoginTypeString(loginType))
                 .Callback(true)
                 .CommandBuilder();
 
             EngineBridge.GetInstance().CallHandler(command, result => {
                 XDTool.Log("LoginByType 方法结果: " + result.ToJSON());
                 if (XDTool.checkResultSuccess(result)){
-                    var userWrapper = new XDUserWrapper(result.content);
-                    if (userWrapper.error != null){
-                        XDTool.Log("Login 登录失败");
-                        return;
-                    }
                     LoginSync();
+                } else{
+                    errorCallback(new XDError(-1, "登录失败"));
                 }
             });
         }
 
         private void LoginSync(){ //需要登录成功才执行这个
             XDTool.Log("LoginSync 开始执行");
+            XDCommon.ShowLoading();
             var command = new Command(XDG_ACCOUNT_SERVICE, "loginSync", true, null);
-            EngineBridge.GetInstance().CallHandler(command, (result => {
+            EngineBridge.GetInstance().CallHandler(command, (async result => {
                 try{
                     XDTool.Log("LoginSync 方法结果: " + result.ToJSON());
                     if (!XDTool.checkResultSuccess(result)){
+                        XDCommon.HideLoading();
                         XDTool.Log("LoginSync 解析失败: ");
                         return;
                     }
 
                     var contentDic = Json.Deserialize(result.content) as Dictionary<string, object>;
                     var token = SafeDictionary.GetValue<string>(contentDic, "sessionToken");
-                    TDSUser.BecomeWithSessionToken(token);
+                    await TDSUser.BecomeWithSessionToken(token);
                     StartUpAntiAddiction();
-                }
-                catch (Exception e){
+                    XDCommon.HideLoading();
+                } catch (Exception e){
+                    XDCommon.HideLoading();
                     XDTool.LogError("LoginSync 报错：" + e.Message);
                     Console.WriteLine(e);
                 }
@@ -101,13 +100,13 @@ namespace XD.Cn.Account{
                     errorCallback(new XDError(result.code, result.message));
                     return;
                 }
-
-                XDUserWrapper userWrapper = new XDUserWrapper(result.content);
+                
+                var userDic = Json.Deserialize(result.content) as Dictionary<string, object>;
+                XDUserWrapper userWrapper = new XDUserWrapper(userDic);
                 if (userWrapper.error != null){
                     errorCallback(userWrapper.error);
                     return;
                 }
-
                 callback(userWrapper.user);
             });
         }
@@ -122,6 +121,13 @@ namespace XD.Cn.Account{
             XDTool.Log("执行： StartUpAntiAddiction");
             var command = new Command(XDG_ACCOUNT_SERVICE, "startUpAntiAddiction", false, null);
             EngineBridge.GetInstance().CallHandler(command);
+        }
+
+        private string GetLoginTypeString(LoginType loginType){
+            if (loginType == LoginType.TapTap){
+                return "TapTap";
+            }
+            return "Default;";
         }
     }
 }
