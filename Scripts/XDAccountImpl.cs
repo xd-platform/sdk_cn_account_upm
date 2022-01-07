@@ -26,7 +26,8 @@ namespace XD.Cn.Account{
         }
 
         public void Login(Action<XDUser> callback, Action<XDError> errorCallback){
-            XDCallbackWrapper.SetLoginCallback(callback, errorCallback);
+            XDCallbackWrapper.loginCallback = callback;
+            XDCallbackWrapper.loginErrorCallback = errorCallback;
             var command = new Command(XDG_ACCOUNT_SERVICE,
                 "login",
                 true,
@@ -42,7 +43,8 @@ namespace XD.Cn.Account{
         }
 
         public void LoginByType(LoginType loginType, Action<XDUser> callback, Action<XDError> errorCallback){
-            XDCallbackWrapper.SetLoginCallback(callback, errorCallback);
+            XDCallbackWrapper.loginCallback = callback;
+            XDCallbackWrapper.loginErrorCallback = errorCallback;
             var command = new Command.Builder()
                 .Service(XDG_ACCOUNT_SERVICE)
                 .Method("loginByType")
