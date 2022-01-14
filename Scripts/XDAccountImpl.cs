@@ -84,6 +84,9 @@ namespace XD.Cn.Account{
                     XDCommon.HideLoading();
                     XDTool.LogError("LoginSync 报错：" + e.Message);
                     Console.WriteLine(e);
+                    if (XDCallbackWrapper.loginErrorCallback != null){
+                        XDCallbackWrapper.loginErrorCallback(new XDError(-1, "登录失败"));   
+                    }
                 }
             }));
         }
