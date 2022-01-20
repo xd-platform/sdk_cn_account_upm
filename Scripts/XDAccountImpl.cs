@@ -132,7 +132,7 @@ namespace XD.Cn.Account{
             if (loginType == LoginType.TapTap){
                 return "TapTap";
             }
-            return "Default;";
+            return "Default";
         }
     }
 }
