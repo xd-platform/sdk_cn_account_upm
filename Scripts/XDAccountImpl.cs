@@ -79,6 +79,13 @@ namespace XD.Cn.Account{
 
                     var contentDic = Json.Deserialize(result.content) as Dictionary<string, object>;
                     var token = SafeDictionary.GetValue<string>(contentDic, "sessionToken");
+                    
+                    if (XDTool.IsEmpty(token)){
+                        XDCommon.HideLoading();
+                        XDTool.LogError("LoginSync 报错：token 是空！ 【result结果：" + resultJson + "】");
+                        return;
+                    }
+
                     await TDSUser.BecomeWithSessionToken(token);
                     StartUpAntiAddiction();
                     XDCommon.HideLoading();
