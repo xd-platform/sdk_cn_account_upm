@@ -64,11 +64,13 @@ namespace XD.Cn.Account{
 
         private void LoginSync(){ //需要登录成功才执行这个
             XDTool.Log("LoginSync 开始执行");
+            var resultJson = "空";
             XDCommon.ShowLoading();
             var command = new Command(XDG_ACCOUNT_SERVICE, "loginSync", true, null);
             EngineBridge.GetInstance().CallHandler(command, (async result => {
                 try{
-                    XDTool.Log("LoginSync 方法结果: " + result.ToJSON());
+                    resultJson = result.ToJSON();
+                    XDTool.Log("LoginSync 方法结果: " + resultJson);
                     if (!XDTool.checkResultSuccess(result)){
                         XDCommon.HideLoading();
                         XDTool.Log("LoginSync 解析失败: ");
@@ -82,7 +84,7 @@ namespace XD.Cn.Account{
                     XDCommon.HideLoading();
                 } catch (Exception e){
                     XDCommon.HideLoading();
-                    XDTool.LogError("LoginSync 报错：" + e.Message);
+                    XDTool.LogError("LoginSync 报错：" + e.Message + "。 【result结果：" + resultJson + "】");
                     Console.WriteLine(e);
                     if (XDCallbackWrapper.loginErrorCallback != null){
                         XDCallbackWrapper.loginErrorCallback(new XDError(-1, "登录失败"));   
