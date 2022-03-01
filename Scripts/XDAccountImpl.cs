@@ -35,6 +35,7 @@ namespace XD.Cn.Account{
             EngineBridge.GetInstance().CallHandler(command, result => {
                 XDTool.Log("Login 方法结果: " + result.ToJSON());
                 if (XDTool.checkResultSuccess(result)){
+                    processUsrId(result.content);
                     LoginSync();
                 } else{
                     errorCallback(new XDError(-1, "登录失败了"));
@@ -55,11 +56,23 @@ namespace XD.Cn.Account{
             EngineBridge.GetInstance().CallHandler(command, result => {
                 XDTool.Log("LoginByType 方法结果: " + result.ToJSON());
                 if (XDTool.checkResultSuccess(result)){
+                    processUsrId(result.content);
                     LoginSync();
                 } else{
                     errorCallback(new XDError(-1, "登录失败"));
                 }
             });
+        }
+
+        private void processUsrId(String content){
+            try{
+                var contentDic = Json.Deserialize(content) as Dictionary<string, object>;
+                var userDic = SafeDictionary.GetValue<Dictionary<string, object>>(contentDic, "user");
+                var userId = SafeDictionary.GetValue<string>(userDic, "userId");
+                XDTool.SetUserId(userId);
+            } catch (Exception e){
+                XDTool.LogError("User json解析失败：" + content + e.Message);
+            }
         }
 
         private void LoginSync(){ //需要登录成功才执行这个
@@ -73,7 +86,10 @@ namespace XD.Cn.Account{
                     XDTool.Log("LoginSync 方法结果: " + resultJson);
                     if (!XDTool.checkResultSuccess(result)){
                         XDCommon.HideLoading();
-                        XDTool.Log("LoginSync 解析失败: ");
+                        XDTool.LogError("LoginSync 解析失败: ");
+                        if (XDCallbackWrapper.loginErrorCallback != null){
+                            XDCallbackWrapper.loginErrorCallback(new XDError(-1, "解析失败"));   
+                        }
                         return;
                     }
 
@@ -83,10 +99,14 @@ namespace XD.Cn.Account{
                     if (XDTool.IsEmpty(token)){
                         XDCommon.HideLoading();
                         XDTool.LogError("LoginSync 报错：token 是空！ 【result结果：" + resultJson + "】");
+                        if (XDCallbackWrapper.loginErrorCallback != null){
+                            XDCallbackWrapper.loginErrorCallback(new XDError(-2, "sessionToken是空"));   
+                        }
                         return;
                     }
 
                     await TDSUser.BecomeWithSessionToken(token);
+                    
                     StartUpAntiAddiction();
                     XDCommon.HideLoading();
                 } catch (Exception e){
@@ -94,7 +114,7 @@ namespace XD.Cn.Account{
                     XDTool.LogError("LoginSync 报错：" + e.Message + "。 【result结果：" + resultJson + "】");
                     Console.WriteLine(e);
                     if (XDCallbackWrapper.loginErrorCallback != null){
-                        XDCallbackWrapper.loginErrorCallback(new XDError(-1, "登录失败"));   
+                        XDCallbackWrapper.loginErrorCallback(new XDError(-3, "登录失败"));   
                     }
                 }
             }));
