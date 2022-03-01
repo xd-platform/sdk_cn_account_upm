@@ -9,6 +9,5 @@
     "url": "https://github.com/xd-platform/sdk_cn_account_upm"
   },
   "dependencies": {
-    "com.xd.cn.common": "https://github.com/xd-platform/sdk_cn_common_upm.git#6.0.1"
   }
 }
