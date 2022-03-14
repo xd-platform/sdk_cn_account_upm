@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using LeanCloud.Storage;
 using TapTap.Bootstrap;
 using TapTap.Common;
 using XD.Cn.Common;
@@ -35,8 +36,8 @@ namespace XD.Cn.Account{
             EngineBridge.GetInstance().CallHandler(command, result => {
                 XDTool.Log("Login 方法结果: " + result.ToJSON());
                 if (XDTool.checkResultSuccess(result)){
-                    processUsrId(result.content);
-                    LoginSync();
+                    var user = processUser(result.content);
+                    LoginSync(user);
                 } else{
                     errorCallback(new XDError(-1, "登录失败了"));
                 }
@@ -56,26 +57,49 @@ namespace XD.Cn.Account{
             EngineBridge.GetInstance().CallHandler(command, result => {
                 XDTool.Log("LoginByType 方法结果: " + result.ToJSON());
                 if (XDTool.checkResultSuccess(result)){
-                    processUsrId(result.content);
-                    LoginSync();
+                    var user = processUser(result.content);
+                    LoginSync(user);
                 } else{
                     errorCallback(new XDError(-1, "登录失败"));
                 }
             });
         }
 
-        private void processUsrId(String content){
+        private XDUser processUser(String content){
             try{
                 var contentDic = Json.Deserialize(content) as Dictionary<string, object>;
-                var userDic = SafeDictionary.GetValue<Dictionary<string, object>>(contentDic, "user");
-                var userId = SafeDictionary.GetValue<string>(userDic, "userId");
-                XDTool.SetUserId(userId);
+                var wrapper = new XDUserWrapper(contentDic);
+                if (wrapper.user != null){
+                    XDTool.SetUserId(wrapper.user.userId);
+                    return wrapper.user;
+                } 
             } catch (Exception e){
-                XDTool.LogError("User json解析失败：" + content + e.Message);
+                XDTool.LogError("processUser json解析失败：" + content + e.Message);
             }
+            return null;
         }
 
-        private void LoginSync(){ //需要登录成功才执行这个
+        private async void LoginSync(XDUser user){ //需要登录成功才执行这个
+            if (user == null || XDTool.IsEmpty(user.userId)){
+                if (XDCallbackWrapper.loginErrorCallback != null){
+                    XDCallbackWrapper.loginErrorCallback(new XDError(-1, "userId是空"));
+                }
+                XDTool.LogError("LoginSync 里的userId参数是空！");
+                return;
+            }
+            
+            TDSUser preUser = await TDSUser.GetCurrent();
+            if (preUser != null){
+                if (preUser.ObjectId == user.userId) {
+                    XDTool.Log("LoginSync 使用local pre user");
+                    StartUpAntiAddiction(); //开始防沉迷流程，之后sdk里会给出登录成功回调
+                    return;
+                } else{
+                    // id 不同可能是有残存的数据，则清空后走重新创建逻辑
+                    await TDSUser.Logout();   
+                }
+            }
+
             XDTool.Log("LoginSync 开始执行");
             var resultJson = "空";
             XDCommon.ShowLoading();
@@ -88,42 +112,52 @@ namespace XD.Cn.Account{
                         XDCommon.HideLoading();
                         XDTool.LogError("LoginSync 解析失败: ");
                         if (XDCallbackWrapper.loginErrorCallback != null){
-                            XDCallbackWrapper.loginErrorCallback(new XDError(-1, "解析失败"));   
+                            XDCallbackWrapper.loginErrorCallback(new XDError(-1, "解析失败"));
                         }
                         return;
                     }
 
                     var contentDic = Json.Deserialize(result.content) as Dictionary<string, object>;
-                    var token = SafeDictionary.GetValue<string>(contentDic, "sessionToken");
-                    
-                    if (XDTool.IsEmpty(token)){
+                    var sessionToken = SafeDictionary.GetValue<string>(contentDic, "sessionToken");
+
+                    if (XDTool.IsEmpty(sessionToken)){
                         XDCommon.HideLoading();
                         XDTool.LogError("LoginSync 报错：token 是空！ 【result结果：" + resultJson + "】");
                         if (XDCallbackWrapper.loginErrorCallback != null){
-                            XDCallbackWrapper.loginErrorCallback(new XDError(-2, "sessionToken是空"));   
+                            XDCallbackWrapper.loginErrorCallback(new XDError(-2, "sessionToken是空"));
                         }
                         return;
                     }
 
-                    await TDSUser.BecomeWithSessionToken(token);
-                    
+                    LCUser lcUser = LCObject.CreateWithoutData(LCUser.CLASS_NAME, user.userId) as LCUser;
+                    lcUser.SessionToken = sessionToken;
+                    await lcUser.SaveToLocal();
+
                     StartUpAntiAddiction();
                     XDCommon.HideLoading();
                 } catch (Exception e){
                     XDCommon.HideLoading();
-                    XDTool.LogError("LoginSync 报错：" + e.Message + "。 【result结果：" + resultJson + "】");
-                    Console.WriteLine(e);
                     if (XDCallbackWrapper.loginErrorCallback != null){
-                        XDCallbackWrapper.loginErrorCallback(new XDError(-3, "登录失败"));   
+                        XDCallbackWrapper.loginErrorCallback(new XDError(-3, "登录失败"));
                     }
+
+                    if (e.InnerException != null){
+                        XDTool.LogError("LoginSync 报错：" + e.Message + e.StackTrace + "【InnerException： " +
+                                        e.InnerException.Message + e.InnerException.StackTrace + "】" +
+                                        "。 【result结果：" + resultJson + "】");
+                    } else{
+                        XDTool.LogError("LoginSync 报错：" + e.Message + e.StackTrace + "。 【result结果：" + resultJson +
+                                        "】");
+                    }
+                    Console.WriteLine(e);
                 }
             }));
         }
 
-        public void Logout(){
+        public async void Logout(){
+            await TDSUser.Logout(); //退出LC
             var command = new Command(XDG_ACCOUNT_SERVICE, "logout", false, null);
             EngineBridge.GetInstance().CallHandler(command);
-            TDSUser.Logout(); //退出LC
         }
 
         public void GetUser(Action<XDUser> callback, Action<XDError> errorCallback){
@@ -134,13 +168,14 @@ namespace XD.Cn.Account{
                     errorCallback(new XDError(result.code, result.message));
                     return;
                 }
-                
+
                 var userDic = Json.Deserialize(result.content) as Dictionary<string, object>;
                 XDUserWrapper userWrapper = new XDUserWrapper(userDic);
                 if (userWrapper.error != null){
                     errorCallback(userWrapper.error);
                     return;
                 }
+
                 callback(userWrapper.user);
             });
         }
@@ -161,10 +196,12 @@ namespace XD.Cn.Account{
             if (loginType == LoginType.TapTap){
                 return "TapTap";
             }
+
             if (loginType == LoginType.Guest){
                 return "Guest";
             }
-            return "Default"; 
+
+            return "Default";
         }
     }
 }
