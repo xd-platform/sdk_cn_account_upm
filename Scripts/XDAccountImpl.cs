@@ -74,17 +74,13 @@ namespace XD.Cn.Account{
                     return wrapper.user;
                 } 
             } catch (Exception e){
-                XDTool.LogError("processUser json解析失败：" + content + e.Message);
+                XDTool.Log("登录取消或登录失败了。：" + content + e.Message);
             }
             return null;
         }
 
         private async void LoginSync(XDUser user){ //需要登录成功才执行这个
             if (user == null || XDTool.IsEmpty(user.userId)){
-                if (XDCallbackWrapper.loginErrorCallback != null){
-                    XDCallbackWrapper.loginErrorCallback(new XDError(-1, "userId是空"));
-                }
-                XDTool.LogError("LoginSync 里的userId参数是空！");
                 return;
             }
             
