@@ -36,7 +36,7 @@ namespace XD.Cn.Account{
             EngineBridge.GetInstance().CallHandler(command, result => {
                 XDTool.Log("Login 方法结果: " + result.ToJSON());
                 if (XDTool.checkResultSuccess(result)){
-                    var user = processUser(result.content);
+                    var user = processUser(result.content, errorCallback);
                     LoginSync(user);
                 } else{
                     errorCallback(new XDError(-1, "登录失败了"));
@@ -57,7 +57,7 @@ namespace XD.Cn.Account{
             EngineBridge.GetInstance().CallHandler(command, result => {
                 XDTool.Log("LoginByType 方法结果: " + result.ToJSON());
                 if (XDTool.checkResultSuccess(result)){
-                    var user = processUser(result.content);
+                    var user = processUser(result.content, errorCallback);
                     LoginSync(user);
                 } else{
                     errorCallback(new XDError(-1, "登录失败"));
@@ -65,16 +65,29 @@ namespace XD.Cn.Account{
             });
         }
 
-        private XDUser processUser(String content){
+        private XDUser processUser(String content, Action<XDError> errorCallback){
             try{
                 var contentDic = Json.Deserialize(content) as Dictionary<string, object>;
-                var wrapper = new XDUserWrapper(contentDic);
-                if (wrapper.user != null){
-                    XDTool.SetUserId(wrapper.user.userId);
-                    return wrapper.user;
-                } 
+                var errorDic = SafeDictionary.GetValue<Dictionary<string, object>>(contentDic, "error");
+                if (errorDic == null){
+                    var wrapper = new XDUserWrapper(contentDic);
+                    if (wrapper.user != null){
+                        XDTool.SetUserId(wrapper.user.userId);
+                        return wrapper.user;
+                    } 
+                } else{//iOS是会在SetCallback里统一给回调，安卓没有所以这里特殊处理安卓情况   
+#if UNITY_ANDROID
+                    var code = SafeDictionary.GetValue<int>(errorDic, "code");
+                    var msg = SafeDictionary.GetValue<string>(errorDic, "error_msg");
+                    if (code == 5){ //取消
+                        errorCallback(new XDError(-2, "登录取消")); //对外给游戏-2是取消
+                    } else{ //失败
+                        errorCallback(new XDError(code, msg));
+                    }              
+#endif
+                }
             } catch (Exception e){
-                XDTool.Log("登录取消或登录失败了。：" + content + e.Message);
+                XDTool.LogError("登录失败：" + content + e.Message);
             }
             return null;
         }
