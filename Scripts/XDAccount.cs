@@ -22,5 +22,9 @@ namespace XD.Cn.Account{
         public static void OpenUserCenter(){
             XDAccountImpl.GetInstance().OpenUserCenter();
         }
+        
+        public static void AccountCancellation(){
+            XDAccountImpl.GetInstance().AccountCancellation();
+        }
     }
 }

@@ -200,6 +200,13 @@ namespace XD.Cn.Account{
             var command = new Command(XDG_ACCOUNT_SERVICE, "startUpAntiAddiction", false, null);
             EngineBridge.GetInstance().CallHandler(command);
         }
+        
+        public void AccountCancellation(){ //iOS有，安卓没有
+#if UNITY_IOS
+            var command = new Command(XDG_ACCOUNT_SERVICE, "accountCancellation", false, null);
+            EngineBridge.GetInstance().CallHandler(command); 
+#endif
+        }
 
         private string GetLoginTypeString(LoginType loginType){
             if (loginType == LoginType.TapTap){
